@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Confirmação Futebol</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: #f2f2f2;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #007bff;
+        }
+        .container {
+            display: flex;
+            gap: 40px;
+            flex-wrap: wrap; /* Permite quebrar linha em telas menores */
+            justify-content: center;
+        }
+        .lista, .times {
+            flex: 1;
+            min-width: 300px; /* Garante que os painéis não fiquem muito pequenos */
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .jogador {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 10px;
+            padding: 8px 10px;
+            background-color: #f9f9f9;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+            transition: background-color 0.3s ease;
+        }
+        .jogador input[type="text"] {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .jogador select {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #fff;
+            font-size: 14px;
+        }
+        .checkbox {
+            min-width: 20px; /* Garante tamanho fixo */
+            min-height: 20px; /* Garante tamanho fixo */
+            cursor: pointer;
+        }
+        .confirmado {
+            background-color: #d4edda;
+            border-color: #28a745;
+        }
+        .botao {
+            margin-top: 15px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            border: none;
+            color: white;
+            font-size: 15px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: background-color 0.3s ease;
+            display: inline-block; /* Para alinhar botões na mesma linha */
+            margin-right: 10px; /* Espaçamento entre botões */
+        }
+        .botao:hover {
+            background-color: #0056b3;
+        }
+        .botao-clear {
+            background-color: #dc3545; /* Cor vermelha para limpar */
+        }
+        .botao-clear:hover {
+            background-color: #c82333;
+        }
+        .botao-whatsapp {
+            background-color: #25D366; /* Cor do WhatsApp */
+        }
+        .botao-whatsapp:hover {
+            background-color: #1DA851;
+        }
+        .time {
+            background: #f0f8ff; /* Cor clara para os times */
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #b3d9ff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .time h3 {
+            margin-top: 0;
+            color: #0056b3;
+            border-bottom: 1px solid #cfe2ff;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+        }
+        .time ul {
+            list-style: none; /* Remove bolinhas */
+            padding: 0;
+            margin: 0;
+        }
+        .time ul li {
+            padding: 5px 0;
+            font-size: 15px;
+        }
+        /* Responsividade básica */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            .lista, .times {
+                min-width: unset;
+                width: 100%;
+            }
+            .jogador {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .jogador input[type="text"], .jogador select {
+                width: 100%;
+            }
+            .botao {
+                width: calc(100% - 20px); /* Ajusta largura total com padding */
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Confirmação Fut Sexta-Feira</h1>
+
+    <div class="container">
+        <div class="lista">
+            <h2>Lista de Jogadores</h2>
+            {% for i in range(27) %}
+            <div class="jogador {% if players and players[i][3] == 1 %}confirmado{% endif %}" data-id="{{ players[i][0] }}">
+                <input type="text" placeholder="Nome" value="{{ players[i][1] if players and players[i][1] else '' }}">
+                <select>
+                    <option value="linha" {% if players and players[i][2] == 'linha' %}selected{% endif %}>Linha</option>
+                    <option value="gol" {% if players and players[i][2] == 'gol' %}selected{% endif %}>Gol</option>
+                </select>
+                <input type="checkbox" class="checkbox" {% if players and players[i][3] == 1 %}checked{% endif %}>
+                <button class="botao botao-salvar">Salvar</button>
+            </div>
+            {% endfor %}
+            <button id="merge" class="botao">Mesclar Times</button>
+            <button id="clear-list" class="botao botao-clear">Limpar Lista</button>
+            <button id="copy" class="botao" style="display:none;">Copiar lista</button>
+            <a id="whatsapp-link" class="botao botao-whatsapp" style="display:none;" target="_blank">Compartilhar no WhatsApp</a>
+            <textarea id="text-to-copy" style="opacity:0; position:absolute; left:-9999px;"></textarea>
+        </div>
+
+        <div class="times" id="times">
+            <h2>Times Gerados</h2>
+            <p id="times-placeholder">Clique em "Mesclar Times" para gerar os times.</p>
+        </div>
+    </div>
+
+    <script>
+        const saveBtns = document.querySelectorAll('.botao-salvar');
+        saveBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const div = btn.closest('.jogador');
+                const id = div.dataset.id;
+                const name = div.querySelector('input[type="text"]').value;
+                const position = div.querySelector('select').value;
+                const confirmed = div.querySelector('.checkbox').checked;
+
+                fetch('/update_player', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({id, name, position, confirmed})
+                }).then(res => res.json()).then(data => {
+                    if (data.success) {
+                        if (confirmed && name.trim() !== '') {
+                            div.classList.add('confirmado');
+                        } else {
+                            div.classList.remove('confirmado');
+                        }
+                        alert('Jogador atualizado com sucesso!'); // Feedback ao usuário
+                    } else {
+                        alert('Erro ao atualizar jogador.');
+                    }
+                }).catch(error => {
+                    console.error('Erro na requisição:', error);
+                    alert('Ocorreu um erro ao atualizar o jogador.');
+                });
+            });
+        });
+
+        // Event listener para a checkbox - atualiza o estado de confirmação sem precisar clicar em "Salvar"
+        document.querySelectorAll('.jogador .checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', (event) => {
+                const div = event.target.closest('.jogador');
+                const id = div.dataset.id;
+                const name = div.querySelector('input[type="text"]').value;
+                const position = div.querySelector('select').value;
+                const confirmed = event.target.checked;
+
+                // Apenas atualiza se o nome não estiver vazio ao confirmar
+                if (confirmed && name.trim() === '') {
+                    alert('Por favor, digite o nome do jogador antes de confirmar.');
+                    event.target.checked = false; // Desfaz a marcação
+                    return;
+                }
+
+                fetch('/update_player', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({id, name, position, confirmed})
+                }).then(res => res.json()).then(data => {
+                    if (data.success) {
+                        if (confirmed) {
+                            div.classList.add('confirmado');
+                        } else {
+                            div.classList.remove('confirmado');
+                        }
+                        // Feedback visual já é a classe 'confirmado', não precisa de alert
+                    } else {
+                        alert('Erro ao atualizar confirmação.');
+                    }
+                }).catch(error => {
+                    console.error('Erro na requisição:', error);
+                    alert('Ocorreu um erro ao atualizar a confirmação.');
+                });
+            });
+        });
+
+        document.getElementById('merge').addEventListener('click', () => {
+            fetch('/merge', {method: 'POST'})
+                .then(res => res.json())
+                .then(data => {
+                    const timesDiv = document.getElementById('times');
+                    timesDiv.innerHTML = ''; // Limpa a div de times
+                    const copyBtn = document.getElementById('copy');
+                    const whatsappLink = document.getElementById('whatsapp-link');
+                    const textarea = document.getElementById('text-to-copy');
+                    const timesPlaceholder = document.getElementById('times-placeholder');
+
+                    if (!data.success) {
+                        alert(data.msg);
+                        copyBtn.style.display = 'none';
+                        whatsappLink.style.display = 'none';
+                        if (timesPlaceholder) timesPlaceholder.style.display = 'block'; // Mostra placeholder
+                        return;
+                    }
+
+                    if (timesPlaceholder) timesPlaceholder.style.display = 'none'; // Esconde placeholder
+
+                    let texto = "🏆 *Times do Futebol Confirmado* 🏆\n\n";
+
+                    for (let [nome, jogadores] of Object.entries(data.times)) {
+                        texto += `*${nome}*\n`;
+                        texto += jogadores.map(j => `- ${j[1]} (${j[2] === 'gol' ? 'Goleiro' : 'Linha'})`).join('\n') + '\n\n';
+
+                        const timeDiv = document.createElement('div');
+                        timeDiv.className = 'time';
+                        timeDiv.innerHTML = `<h3>${nome}</h3><ul>${jogadores.map(j => `<li>${j[1]} (${j[2] === 'gol' ? 'Goleiro' : 'Linha'})</li>`).join('')}</ul>`;
+                        timesDiv.appendChild(timeDiv);
+                    }
+
+                    texto = texto.trim();
+                    textarea.value = texto;
+                    copyBtn.style.display = 'inline-block';
+
+                    const msgEncoded = encodeURIComponent(texto);
+                    whatsappLink.href = `https://wa.me/?text=${msgEncoded}`;
+                    whatsappLink.style.display = 'inline-block';
+                }).catch(error => {
+                    console.error('Erro ao mesclar times:', error);
+                    alert('Ocorreu um erro ao mesclar os times.');
+                });
+        });
+
+        document.getElementById('clear-list').addEventListener('click', () => {
+            if (confirm('Tem certeza que deseja limpar toda a lista de jogadores e confirmações? Esta ação não pode ser desfeita.')) {
+                fetch('/clear_list', {method: 'POST'})
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Lista limpa com sucesso!');
+                            window.location.reload(); // Recarrega a página para mostrar a lista limpa
+                        } else {
+                            alert('Erro ao limpar a lista.');
+                        }
+                    }).catch(error => {
+                        console.error('Erro ao limpar a lista:', error);
+                        alert('Ocorreu um erro ao limpar a lista.');
+                    });
+            }
+        });
+
+
+        document.getElementById('copy').addEventListener('click', () => {
+            const textarea = document.getElementById('text-to-copy');
+            textarea.select();
+            document.execCommand('copy');
+            alert('Lista copiada com sucesso! Cole no WhatsApp.');
+        });
+    </script>
+</body>
+</html>
